@@ -1,0 +1,26 @@
+{
+    "name": "hao/explorer",
+    "authors": [
+        {
+            "name": "vanhaohero1998",
+            "email": "quachvanhao2020@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Explorer\\": "src/"
+        },
+        "files": [
+            "src/functions.php",
+            "src/awake.php"
+        ]
+    },
+    "require": {
+        "php": ">=5.3",
+        "hao/yphp": "dev-main"
+    },
+    "repositories": [
+        {"type": "vcs", "url": "https://github.com/quachvanhao2020/YPHP.git"},
+        {"type": "vcs", "url": "https://github.com/quachvanhao2020/Identimo.git"}
+    ]
+}
