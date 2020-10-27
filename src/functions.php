@@ -121,3 +121,26 @@ function size_convert($size)
         return sprintf('%s TB', round(($size / 1024 / 1024 / 1024 / 1024), 2));
     }
 }
+
+function fm_rdelete($path)
+{
+    if (is_link($path)) {
+        return unlink($path);
+    } elseif (is_dir($path)) {
+        $objects = scandir($path);
+        $ok = true;
+        if (is_array($objects)) {
+            foreach ($objects as $file) {
+                if ($file != '.' && $file != '..') {
+                    if (!fm_rdelete($path . '/' . $file)) {
+                        $ok = false;
+                    }
+                }
+            }
+        }
+        return ($ok) ? rmdir($path) : false;
+    } elseif (is_file($path)) {
+        return unlink($path);
+    }
+    return false;
+}

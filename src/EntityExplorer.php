@@ -1,33 +1,30 @@
 <?php
 namespace Explorer;
 
-class EntityExplorer extends EntityExplorerAbstract{
+class EntityExplorer{
 
-    public $dirname;
+        /**
+     * @var string
+     */
+    protected $id;
 
-    public function save(){
+        /**
+     * @var string
+     */
+    protected $path;
+    /**
+     * @var string
+     */
+    protected $dirname;
 
-        $this->name && rename($this->getId(),$this->getNewId());
+        /**
+     * @var string
+     */
+    protected $pathinfo;
 
-    }
-
-    public function getNewId(){
-
-        return $this->getDirname().DIRECTORY_SEPARATOR.$this->name;
-
-    }
-
-    public function getDirname(){
-
-        !$this->dirname && $this->dirname = pathinfo($this->id)["dirname"];
-
-        return $this->dirname;
-        
-    }
-
-    public function setDirname($dirname){
-
-        $this->dirname = $dirname;
-
+    public function __construct($path,$id = null){
+        $this->id = $id;
+        $this->path = $path;
+        $this->pathinfo = \pathinfo($path);
     }
 }
