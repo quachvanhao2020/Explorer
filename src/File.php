@@ -1,182 +1,233 @@
 <?php
 namespace Explorer;
-use Yes\SerializationInterface;
-
 
 class File extends EntityExplorer{
 
-    public $size;
+        /**
+    * @var string
+    */
+    protected $dirname;
 
-    public $perms;
+    /**
+    * @var string
+    */
+    protected $lastModified;
 
-    public $extension;
+    /**
+    * @var string
+    */
+    protected $fileName;
 
-    public $content;
+    /**
+    * @var string
+    */
+    protected $extension;
 
-    public $dirname;
+    /**
+    * @var string
+    */
+    protected $content;
 
-    public $date;
-
-    public function getParent(){
-
-        return parent;
+    public function __destruct()
+    {
+    if(!$this->_exists){
+        return;
     }
-
-    public function canExists(){
-
-        return is_file($this->id) && file_exists($this->id);
-
+    if($this->getLastModified() > @filemtime($this->getFullPath())){
+        //$this->save();
     }
-
-    public function readExit(){
-
-        return \readfile($this->getId());
-
     }
 
     public function save(){
-
-        $this->content && file_put_contents($this->getId(),$this->content);
-        $this->name && rename($this->getId(),$this->getNewId());
-
+    if(!$this->_exists){
+        if($this->parent){
+            $this->getParent()->save();
+        }   
     }
-
-    public function getNewId(){
-
-        return $this->getDirname().DIRECTORY_SEPARATOR.$this->name;
-
+    if($this->content){
+        file_put_contents($this->getFullPath(),$this->getContent());
+    }else{
+        touch($this->getFullPath());  
     }
-
-    public function getDate(){
-
-        !$this->date && $this->date = filemtime($this->getId());
-
-        return $this->date;
-
-    }
-
-    public function getName(){
-
-        !$this->name && $this->name = basename($this->id);
-
-        return $this->name;
-
-    }
-
-    public function setName($name){
-
-        $this->name = $name;
-    }
-
-    public function getContent(){
-
-        !$this->content && $this->content = file_get_contents($this->id);
-
-        return $this->content;
-
-    }
-
-    public function setContent($content){
-
-        if($content instanceof SerializationInterface){
-
-            $content = $content->serialize();
-
-        }else if(\is_array($content)){
-
-            $content = \json_encode($content);
-
-        }
-
-        $this->content = $content;
-
-    }
-
-    public function getExtension(){
-
-        !$this->extension && $this->extension = pathinfo($this->id)["extension"];
-
-        return $this->extension;
-        
-    }
-
-    public function getDirname(){
-
-        !$this->dirname && $this->dirname = pathinfo($this->id)["dirname"];
-
-        return $this->dirname;
-        
-    }
-
-    public function setDirname($dirname){
-
-        if($dirname instanceof Folder){
-
-            $dirname = $dirname->getId();
-
-        }
-
-        $this->dirname = $dirname;
-
-    }
-
-    public function getPerms(){
-
-        !$this->perms && $this->perms = substr(decoct(fileperms($this->id)), -4);
-
-        return $this->perms;
-
-    }
-
-    public function getSize(){
-
-        !$this->size && $this->size = ExplorerStatic::get_size($this->id);
-
-        return $this->size;
-
-    }
-
-
-    public function setSize($size){
-
-        $this->size = $size;
-
-    }
-
-    public function getInfo(){
-
-        $this->getSize();
-        $this->getPerms();
-        $this->getName();
-        $this->getExtension();
-        $this->getDirname();
-        $this->getDate();
-        return $this;
-
-    }
-
-    public function canArouse(){
-
-        touch($this->id);
-
-    }
-
-    public function copyTo(Folder $folder){
-
-        if(alive($folder) || $folder = arouse($folder)){
-
-            $path = $folder->getId().DIRECTORY_SEPARATOR.$this->getName();
-
-            return copy($this->getId(),$path);
-
-        }
-
     }
 
     public function destroy(){
-
-        unlink($this->getId());
-
+    unlink($this->getFullPath());
+    $this->_exists = false;
     }
 
+    public function exists(){
+    $this->_exists = is_file($this->getFullPath()) && file_exists($this->getFullPath());
+    return $this->_exists;
+    }
+
+    protected function init(){
+        $pathinfo = \pathinfo($this->path);
+        $dirname = $pathinfo["dirname"];
+        $basename = $pathinfo["basename"];
+        $filename = $pathinfo["filename"];
+        $extension = isset($pathinfo["extension"]) ? $pathinfo["extension"] : "";
+        if(!($dirname == ".")){
+            $folder = new Folder($dirname,$this->getParent());
+            $this->setParent($folder);
+            $this->setPath($basename);
+        }
+        $this->dirname = $dirname;
+        $this->name = $filename;
+        $this->extension = $extension;
+        $this->fileName = $basename;
+        if(!$this->exists()){
+            $this->save();
+            //throw new FileNotFound($this->getFullPath());
+        }
+        $this->lastModified = filemtime($this->getFullPath());
+    }
+
+    /**
+    * Get the value of extension
+    *
+    * @return  string
+    */ 
+    public function getExtension()
+    {
+    return $this->extension;
+    }
+
+    /**
+    * Set the value of extension
+    *
+    * @param  string  $extension
+    *
+    * @return  self
+    */ 
+    public function setExtension(string $extension)
+    {
+    $this->extension = $extension;
+
+    return $this;
+    }
+
+
+    /**
+    * Get the value of fileName
+    *
+    * @return  string
+    */ 
+    public function getFileName()
+    {
+    return $this->fileName;
+    }
+
+    /**
+    * Set the value of fileName
+    *
+    * @param  string  $fileName
+    *
+    * @return  self
+    */ 
+    public function setFileName(string $fileName)
+    {
+    $this->fileName = $fileName;
+    $this->clear();
+    return $this;
+    }
+
+    public function clear(){
+    $pathinfo = \pathinfo($this->fileName);
+    $this->setName($pathinfo["basename"]);
+    $this->setExtension($pathinfo["extension"]);
+    }
+
+    /**
+    * Get the value of content
+    *
+    * @return  string
+    */ 
+    public function getContent()
+    {
+    !$this->content && $this->content = file_get_contents($this->getFullPath());
+    return $this->content;
+    }
+
+    /**
+    * Set the value of content
+    *
+    * @param  string  $content
+    *
+    * @return  self
+    */ 
+    public function setContent(string $content)
+    {
+    $this->content = $content;
+    $this->setLastModified(time());
+    return $this;
+    }
+
+    /**
+    * Get the value of lastModified
+    *
+    * @return  string
+    */ 
+    public function getLastModified()
+    {
+        return $this->lastModified;
+    }
+
+    /**
+    * Set the value of lastModified
+    *
+    * @param  string  $lastModified
+    *
+    * @return  self
+    */ 
+    public function setLastModified(string $lastModified)
+    {
+        $this->lastModified = $lastModified;
+
+        return $this;
+    }
+
+    public function copyTo(Folder $folder){
+        return copy($this->getFullPath(),$folder->getFullPath().DIRECTORY_SEPARATOR.$this->getFileName());
+    }
+
+    public function moveTo(Folder $folder){
+        if($this->copyTo($folder)){
+            $this->destroy();
+        }
+    }
+
+        /**
+    * Get the value of path
+    *
+    * @return  string
+    */ 
+    public function getPath()
+    {
+        return $this->getName().".".$this->getExtension();
+    }
+
+    /**
+    * Get the value of dirname
+    *
+    * @return  string
+    */ 
+    public function getDirname()
+    {
+    return $this->dirname;
+    }
+
+    /**
+    * Set the value of dirname
+    *
+    * @param  string  $dirname
+    *
+    * @return  self
+    */ 
+    public function setDirname(string $dirname)
+    {
+    $this->dirname = $dirname;
+
+    return $this;
+    }
 }

@@ -17,7 +17,8 @@
     },
     "require": {
         "php": ">=5.3",
-        "hao/yphp": "dev-main"
+        "hao/yphp": "dev-main",
+        "symfony/filesystem": "^5.1"
     },
     "repositories": [
         {"type": "vcs", "url": "https://github.com/quachvanhao2020/YPHP.git"},

@@ -3,231 +3,115 @@ namespace Explorer;
 
 class Folder extends EntityExplorer{
 
-    public $dirname;
 
-    public $size;
 
-    public $perms;
-
-    public $childs = [];
-
-    public $date;
-
-    public function save(){
-
-        $this->name && !self::icanExists($this->getNewId()) && rename($this->getId(),$this->getNewId());
-    }
-
-    public function setDirname($dirname){
-
-        if($dirname instanceof Folder){
-
-            $dirname = $dirname->getId();
-
-        }
-
-        $this->dirname = $dirname;
-
-    }
-
-    public function canExists(){
-
-        return self::icanExists($this->id);
-
-    }
-
-    public static function icanExists($id){
-
-        return \is_dir($id);
-
-    }
-
-    public function getDate(){
-
-        !$this->date && $this->date = filemtime($this->getId());
-
-        return $this->date;
-
-    }
-
-    public function getDirname(){
-
-        !$this->dirname && $this->dirname = pathinfo($this->id)["dirname"];
-
-        return $this->dirname;
-        
-    }
-
-    public function getName(){
-
-        !$this->name && $this->name = pathinfo($this->id)["basename"];
-
-        return $this->name;
-        
-    }
-
-    public function getPerms(){
-
-        !$this->perms && $this->perms = substr(decoct(fileperms($this->id)), -4);
-
-        return $this->perms;
-
-    }
-
-    public function getSize(){
-
-        !$this->size && $this->size = ExplorerStatic::get_size($this->id);
-
-        return $this->size;
-
-    }
-
-    private function _getChilds(){
-
-        $objects = scandir($this->getId());
-        
+    private function _getChildren(){
+        $path = $this->getFullPath();
+        $objects = scandir($path);
         if (is_array($objects)) {
-
             foreach ($objects as $file) {
                 if ($file == '.' || $file == '..') {
                     continue;
                 }
-
                 //if (!self::$SHOW_HIDDEN && substr($file, 0, 1) === '.') {continue;}
-                $new_path = $this->getId() . '/' . $file;
+                $new_path = $path . '/' . $file;
                 if (@is_file($new_path)) {
-
-                    array_push($this->childs,new File($new_path));
-
+                    $file = new File($file,$this);
+                    array_push($this->children,$file);
                 } elseif (@is_dir($new_path) && $file != '.' && $file != '..') {
-
-                    array_push($this->childs,new Folder($new_path));
-
+                    $folder = new Folder($file,$this);
+                    array_push($this->children,$folder);
                 }
             }
         }
-
-        return $this->childs;
-
+        return $this->children;
     }
 
-    public function getChilds($zoom = false){
+    public function exists(){
+        $this->_exists = \is_dir($this->getFullPath());
+        return $this->_exists;
+    }
 
-        !$this->childs && $this->childs = $this->_getChilds();
+    protected function init(){
+    $pathinfo = \pathinfo($this->path);
+    $dirname = $pathinfo["dirname"];
+    $basename = $pathinfo["basename"];
+    $this->name = $basename;
+    //var_dump($dirname);
 
-        if($zoom){
+    if(!($dirname == "." || $dirname == DIRECTORY_SEPARATOR)){
+        //var_dump($dirname);
+        $folder = new Folder($dirname,$this->getParent());
+        $this->setParent($folder);
+        $this->setPath($basename);
+    }
+    if(!$this->exists()){
+        //throw new FolderNotFound($this->getFullPath());
+    }
+    }
 
-            foreach ($this->childs as $value) {
-
-                if(\method_exists($value,__FUNCTION__)){
-
-                    $value->{__FUNCTION__}($zoom);
-
-                }
-
+    public function save(){
+    $path = $this->getFullPath();
+    if($this->children){
+        foreach ($this->getChildren() as $entity) {
+            if(!$entity->getParent()){
+                $entity->setParent($this);
             }
-
+            $entity->save();
         }
-
-        return $this->childs;
-
+    }
+    if (!file_exists($path)) {
+        return mkdir($path,0777,true);
+    }
     }
 
-    public function setChilds($childs){
-
-        $this->childs = $childs;
-
+    /**
+    * Get the value of children
+    *
+    * @return  mixed
+    */ 
+    public function getChildren()
+    {
+        if(!$this->children) $this->_getChildren();
+        return $this->children;
     }
 
-    public function addChild($child){
-
-        if($child instanceof Folder){
-
-            $unit = new Folder($this->getId()."/".$child->getName());
-
-            $unit = \alive($unit,true);
-
-            $unit -> addChilds($child->getChilds());
-
-        }else if($child instanceof File){
-
-            $child->copyTo($this);
-
-            $unit = $child;
-
-        }
-
-        \array_push($this->childs,$unit);
-
-    }
-
-    public function addChilds($childs){
-
-        $this->getChilds();
-
-        foreach ($childs as $value) {
-
-            $this->addChild($value);
-
-        }
-
-    }
-
-    public function getInfo(){
-
-        $this->getSize();
-        $this->getPerms();
-        $this->getDirname();
-        $this->getName();
+    /**
+    * Set the value of children
+    *
+    * @param  mixed  $children
+    *
+    * @return  self
+    */ 
+    public function setChildren($children)
+    {
+        $this->children = $children;
 
         return $this;
     }
 
-    public function canArouse(){
-
-        mkdir($this->id);
-
-    }
-
     public function destroy(){
-
-       return self::fm_rdelete($this->getId());
-
-    }
-
-    public static function fm_rdelete($path)
-    {
-        if (is_link($path)) {
-            return unlink($path);
-        } elseif (is_dir($path)) {
-            $objects = scandir($path);
-            $ok = true;
-            if (is_array($objects)) {
-                foreach ($objects as $file) {
-                    if ($file != '.' && $file != '..') {
-                        if (!self::fm_rdelete($path . '/' . $file)) {
-                            $ok = false;
-                        }
-                    }
-                }
-            }
-            return ($ok) ? rmdir($path) : false;
-        } elseif (is_file($path)) {
-            return unlink($path);
-        }
-        return false;
+    \fm_rdelete($this->getFullPath());
     }
 
     public function copyTo(Folder $folder){
-
-        if(alive($folder) || $folder = arouse($folder)){
-
-            $this->getChilds(true);
-
-            $folder->addChilds(arrayLazy($this));
-
-        }
-
+    $fileSystem = new \Symfony\Component\Filesystem\Filesystem();
+    try {
+        $fileSystem->mirror($this->getFullPath(), $folder->getFullPath().DIRECTORY_SEPARATOR.$this->getName());
+        return true;
+    } catch (\Throwable $th) {
     }
+    }
+
+    public function moveTo(Folder $folder){
+    if($this->copyTo($folder)){
+        $this->destroy();
+    }
+    }
+
+            /**
+    * @var mixed
+    */
+    protected $children = [];
 
 }
